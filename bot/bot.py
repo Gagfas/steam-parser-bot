@@ -19,7 +19,7 @@ user_monitors = {}
 
 def get_user_monitor(user_id:int, cache: SimpleSkinCache, loop: asyncio.AbstractEventLoop) -> SkinMonitor:
     if user_id not in user_monitors:
-        monitor = SkinMonitor(cache, update_interval=300)
+        monitor = SkinMonitor(cache, update_interval=1800)
 
         async def on_price_change(skin_name, old_price, new_price):
             await bot.send_message(
@@ -131,6 +131,10 @@ async def cmd_add(message: Message):
         return
     cache = get_user_cache(user_id)
     cache.add(skin_name, result)
+    
+    if '_info' in result:
+        await message.answer(f"ℹ️ {result['_info']}")
+
     loop = asyncio.get_running_loop()
     get_user_monitor(user_id, cache, loop)
     await message.answer(
@@ -152,7 +156,8 @@ async def cmd_list(message: Message):
     for i, (skin_name, data) in enumerate(skins, 1):
         price = data['price'].get('💰 Минимальная цена', 'Н/Д')
         updated = data['last_updated'][:16].replace('T', ' ')
-        text += f"{i}. 🎯 {skin_name}\n   💰 {price} (обн: {updated})\n\n"
+        display_name = data['price'].get('🎯 Предмет', skin_name)
+        text += f"{i}. 🎯 {display_name}\n   💰 {price} (обн: {updated})\n\n"
 
     if len(text) > 4000:
         text = text[:4000] + '...\n(слишком много скинов)'
@@ -188,7 +193,7 @@ async def cmd_remove(message:Message):
     skin_name = skins[idx][0]
     cache.remove(skin_name)
     await message.answer(
-        'Скин удален!**\n\n'
+        '**Скин удален!**\n\n'
         f'{skin_name}',
         parse_mode='Markdown'
     )
