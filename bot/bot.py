@@ -3,7 +3,7 @@ import sys
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from bot.keyboards import get_cancel_keyboard, get_main_keyboard
+from keyboards import get_cancel_keyboard, get_main_keyboard
 
 sys.path.append(str(Path(__file__).parent.parent))
 
