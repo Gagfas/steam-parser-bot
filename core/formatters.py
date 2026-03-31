@@ -18,6 +18,7 @@ def format_steam_price(data, item_name):
         result['📦 Объём продаж (шт.)'] = data['volume']
     
     if '_info' in data:
+        result['_info'] = data['_info']
         result['ℹ️ Примечание'] = data['_info'].replace('Автоматически добавлено качество: ', '')
     
     return result
