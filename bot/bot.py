@@ -17,6 +17,7 @@ from core.simple_monitor import SkinMonitor
 
 waiting_for_skin = set()
 waiting_for_price = set()
+waiting_for_remove = set() 
 
 load_dotenv()
 user_monitors = {}
@@ -282,7 +283,20 @@ async def button_add_skin(message: Message):
 
 @dp.message(lambda msg: msg.text == "❌ Удалить")
 async def button_remove_skin(message: Message):
-    await cmd_remove(message)
+    user_id = message.from_user.id
+    cache = get_user_cache(user_id)
+    skins = cache.get_all_with_data()
+    if not skins:
+        await message.answer('📭 У вас нет отслеживаемых скинов')
+        return
+    text = '**📋 Ваши скины**\n\n'
+    for i, (skin_name, data) in enumerate(skins, 1):
+        price = data['price'].get('💰 Минимальная цена', 'Н/Д')
+        text += f"{i}. 🎯 {skin_name}\n   💰 {price}\n\n"
+    text += '❓ Введите номер скина для удаления:'
+
+    await message.answer(text, parse_mode='Markdown', reply_markup=get_cancel_keyboard())
+    waiting_for_remove.add(user_id)
 
 @dp.message(lambda msg: msg.text == "💰 Цена сейчас")
 async def button_price_now(message: Message):
@@ -302,6 +316,7 @@ async def button_help(message: Message):
 async def button_cancel(message: Message):
     waiting_for_skin.discard(message.from_user.id)
     waiting_for_price.discard(message.from_user.id)
+    waiting_for_remove.discard(message.from_user.id)
     await message.answer(
         "❌ Действие отменено",
         reply_markup=get_main_keyboard()
@@ -324,6 +339,30 @@ async def handle_text_input(message: Message):
     elif user_id in waiting_for_price:
         waiting_for_price.discard(user_id)
         await cmd_price_with_text(message, text)
+        await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
+    elif user_id in waiting_for_remove:
+        waiting_for_remove.discard(user_id)
+        try:
+            idx = int(text) - 1
+        except ValueError:
+            await message.answer("❌ Введите число — номер скина из списка")
+            await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
+            return
+        
+        cache = get_user_cache(user_id)
+        skins = cache.get_all_with_data()
+        
+        if idx < 0 or idx >= len(skins):
+            await message.answer(f"❌ Неверный номер. Всего скинов: {len(skins)}")
+            await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
+            return
+        
+        skin_name = skins[idx][0]
+        cache.remove(skin_name)
+        await message.answer(
+            f"✅ **Скин удалён!**\n\n🎯 {skin_name}",
+            parse_mode='Markdown'
+        )
         await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
 
 async def main():
