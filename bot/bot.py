@@ -227,7 +227,14 @@ async def cmd_list(message: Message):
         price = data['price'].get('💰 Минимальная цена', 'Н/Д')
         updated = data['last_updated'][:16].replace('T', ' ')
         display_name = data['price'].get('🎯 Предмет', skin_name)
-        text += f"{i}. 🎯 {display_name}\n   💰 {price} (обн: {updated})\n\n"
+        stats = cache.get_price_change(skin_name, days=3)
+        if stats:
+            trend_str = f" ({stats['trend']} {stats['change_percent']:+.1f}% за 3 дня)"
+        else:
+            trend_str = ""
+
+        text += f"{i}. 🎯 {display_name}\n   💰 {price}{trend_str} (обн: {updated})\n\n"
+        
 
     if len(text) > 4000:
         text = text[:4000] + '...\n(слишком много скинов)'

@@ -66,7 +66,7 @@ class SimpleSkinCache:
         return [(name, data) for name, data in self.cache.items()]
     
     def remove(self, skin_name):
-    #Удалить скин
+        #Удалить скин
         if skin_name in self.cache:
             del self.cache[skin_name]
             self.save()
@@ -81,11 +81,55 @@ class SimpleSkinCache:
         new_price_str = new_price.get('💰 Минимальная цена')
         self.cache[skin_name]['price'] = new_price
         self.cache[skin_name]['last_updated'] = datetime.now().isoformat()
+
+        price_value = float(new_price_str.replace(' руб.', '').replace(',', '.'))
+        history_entry = {
+            'timestamp':datetime.now().isoformat(),
+            'price':price_value
+        }
+
+        if 'price_history' not in self.cache[skin_name]:
+            self.cache[skin_name]['price_history'] = []
+        self.cache[skin_name]['price_history'].append(history_entry)
+        max_history = 144
+        if len(self.cache[skin_name]['price_history']) > max_history:
+            self.cache[skin_name]['price_history'] = self.cache[skin_name]['price_history'][-max_history:]
+
         changed = (old_price != new_price_str)
         if changed:
             self.cache[skin_name]['previous_price'] = old_price
         self.save()
         return changed
+    
+    def get_price_change(self, skin_name, days=3):
+        if skin_name not in self.cache:
+            return None
+        history = self.cache[skin_name].get('price_history', [])
+        if len(history) < 2:
+            return None
+        
+        records_needed = days * 48
+        if len(history) < records_needed:
+            oldest = history[0]
+        else:
+            oldest = history[-records_needed]
+        
+        newest = history[-1]
+        oldest_price = oldest['price']
+        newest_price = newest['price']
+        change_rub = newest_price - oldest_price
+        change_percent = (change_rub/oldest_price) * 100 if oldest_price != 0 else 0
+
+        return {
+            'oldest_price': oldest_price,
+            'newest_price': newest_price,
+            'change_rub': change_rub,
+            'change_percent': change_percent,
+            'trend':  '📈' if change_rub > 0 else '📉' if change_rub < 0 else '➡️',
+            'period_days': days,
+            'oldest_date': oldest['timestamp'][:10]
+        }
+    
     
     def save(self):
         #Сохранить кеш в файл
@@ -100,7 +144,8 @@ class SimpleSkinCache:
             #Загрузить кеш из файла
         if os.path.exists(self.cache_file):
             try:
-                with open(self.cache_file, 'r', encoding='utf-8') as f:                        self.cache = OrderedDict(json.load(f))
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    self.cache = OrderedDict(json.load(f))
                 print(f"✅ Загружено {len(self.cache)} скинов из кеша")
             except Exception as e:
                 print(f"⚠️ Ошибка загрузки кеша: {e}")
